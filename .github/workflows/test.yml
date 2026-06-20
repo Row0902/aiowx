@@ -31,7 +31,7 @@ jobs:
         run: uv sync --frozen
 
       - name: Type check with ty
-        run: uv run ty src/
+        run: uv run ty check src/aiowx/
 
       - name: Lint with ruff
         run: uv run ruff check
