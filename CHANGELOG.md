@@ -7,10 +7,9 @@ Versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [Unreleased]
+## [Unreleased] — upcoming
 
-### Added
-- Release scaffolding: `CHANGELOG.md`, `RELEASE-NOTES.md`, `docs/`.
+<!-- Add new entries here before the next release -->
 
 ---
 

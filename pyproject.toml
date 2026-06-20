@@ -1,6 +1,6 @@
 [project]
 name = "aiowx"
-version = "0.2.0"
+version = "0.2.1"
 description = "Async I/O bridge for wxPython — run asyncio coroutines with wx GUI"
 readme = "README.md"
 authors = [
