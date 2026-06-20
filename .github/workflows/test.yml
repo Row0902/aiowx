@@ -11,8 +11,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  lint:
+    name: Lint & type check
     runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Type check with ty
+        run: uv run ty src/
+
+      - name: Lint with ruff
+        run: uv run ruff check
+
+      - name: Check formatting with ruff
+        run: uv run ruff format --check
+
+  test:
+    name: Test (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref_name == 'main'
     strategy:
       fail-fast: false
       matrix:
@@ -30,18 +57,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
           cache-dependency-glob: "uv.lock"
+          cache-python: true
 
       - name: Install dependencies
         run: uv sync --frozen
-
-      - name: Type check with ty
-        run: uv run ty src/
-
-      - name: Lint with ruff
-        run: uv run ruff check
-
-      - name: Check formatting with ruff
-        run: uv run ruff format --check
 
       - name: Test with pytest
         run: uv run pytest --cov=src --cov-report=xml
