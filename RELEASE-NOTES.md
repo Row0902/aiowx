@@ -1,27 +1,49 @@
-# aiowx v0.2.1 — Release Notes
+# aiowx v0.2.1 — CI/CD, security & branching
 
-> Async I/O bridge for wxPython — run asyncio coroutines with wx GUI.
+Run asyncio coroutines with wxPython GUI — now with CI/CD, security scanning, and a structured branching model.
+
+## Quick path
+
+```bash
+pip install aiowx==0.2.1
+```
+
+Already using it? Update your lockfile:
+
+```bash
+uv sync
+```
 
 ## What's new
 
-- **Strict TDD mode** — full test suite with pytest + pytest-asyncio + coverage (≥80%).
-- **GitHub Actions CI** — matrix testing across Python 3.12, 3.13, and 3.14 with:
-  - `ty` for type checking
-  - `ruff` for linting and formatting
-  - `pytest --cov=src` for test coverage
-- **Supply-chain security** — CodeQL Advanced scanning and dependency review on every PR.
-- **Dependabot** — weekly automated dependency updates with dev-deps grouped.
-- **ruff security rules** — flake8-bandit (S) rules enabled, zero-warnings policy.
-- **PyPI publish workflow** — trusted publishing via `uv build` + `uv publish`, triggered on release, tag push, or manual dispatch.
+| Area | Change |
+|------|--------|
+| **Continuous Integration** | Matrix tests on Python 3.12–3.14 with type checking (`ty`), lint/format (`ruff`), and coverage (`pytest --cov=src`, ≥80 %). Runs on every push and PR. |
+| **Security** | CodeQL Advanced on every push/PR. Ruff bandit (S) rules active. Dependency review blocks vulnerable deps at PR time. |
+| **Supply chain** | Dependabot opens grouped PRs weekly. Trusted publishing to PyPI — no secrets needed. |
+| **Branching** | `canary` is now the default development branch. `main` is protected with PR-only merges and linear history. Feature branches fork from `canary`. |
 
-## Branch workflow
+## Branch model
 
-- `canary` — default branch, all development goes here via PR.
-- `main` — stable only, receives merges exclusively from `canary`.
-- Feature/fix branches branch from `canary` and PR back to `canary`.
+```
+canary (default)          main (stable)
+      │                       │
+      ├── feature/x ── PR →   │
+      ├── fix/y ────── PR →   │
+      └── ... ──────── PR →   │
+                              │
+        canary ──────── PR → main
+```
 
-## What's next
+## Verification checklist
 
-- Documentation and usage guides.
-- Extended async API surface.
-- Community contributions via PRs to `canary`.
+- [ ] CI passes for the three Python versions (3.12, 3.13, 3.14)
+- [ ] `ruff check` passes with zero warnings (bandit S rules included)
+- [ ] `ty src/` reports no type errors
+- [ ] `pytest --cov=src` reports ≥80 % coverage
+- [ ] Dependabot PRs run full CI before merge
+
+## Next steps
+
+- Open a PR against `canary` with your feature or fix.
+- See `CHANGELOG.md` for the full release history.
