@@ -1,0 +1,32 @@
+# Gentleman Guardian Angel Configuration
+# https://github.com/your-org/gga
+
+# AI Provider (required)
+# Options: claude, gemini, codex, opencode, ollama:<model>, lmstudio[:model], github:<model>
+PROVIDER="github:gpt-4.1"
+
+# File patterns to include in review (comma-separated globs)
+# Default: * (all files)
+FILE_PATTERNS="*.py"
+
+# File patterns to exclude from review (comma-separated globs)
+# Default: none
+# Matches ruff exclude in pyproject.toml
+EXCLUDE_PATTERNS="test/*,src/examples/*"
+
+# File containing code review rules
+# Default: AGENTS.md
+RULES_FILE="AGENTS.md"
+
+# Strict mode: fail if AI response is ambiguous
+# Default: true
+STRICT_MODE="true"
+
+# Timeout in seconds for AI provider response
+# Default: 300 (5 minutes)
+# Increase for large changesets or slow connections
+TIMEOUT="300"
+
+# Base branch for --pr-mode (auto-detects main/master/develop if empty)
+# Default: auto-detect
+# PR_BASE_BRANCH="main"

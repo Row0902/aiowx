@@ -1,0 +1,17 @@
+# Change state — python-3.14-native-compat
+# Auto-managed by SDD phases.
+
+schema: spec-driven
+change: python-3.14-native-compat
+created: 2026-06-13
+archived: 2026-06-13
+status: archived
+phases:
+  explore: completed
+  propose: completed
+  spec: completed
+  design: completed
+  tasks: completed
+  apply: completed
+  verify: completed
+  archive: completed

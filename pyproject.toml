@@ -1,0 +1,36 @@
+[project]
+name = "aiowx"
+version = "0.2.0"
+description = "Async I/O bridge for wxPython — run asyncio coroutines with wx GUI"
+readme = "README.md"
+authors = [
+    { name = "Rowell Urbaez Reyes", email = "167712855+Row0902@users.noreply.github.com" },
+]
+requires-python = ">=3.12"
+dependencies = ["wxpython>=4.2.5"]
+
+[build-system]
+requires = ["uv_build>=0.11.21,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+omit = ["src/examples/*"]
+
+[tool.ruff]
+exclude = [
+    "test",         # legacy perf tests / PoC (archived in Phase 3)
+    "src/examples", # example scripts requiring wxPython display
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.0",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.15.17",
+    "ty>=0.0.49",
+]

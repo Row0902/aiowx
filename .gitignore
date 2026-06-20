@@ -1,0 +1,27 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Coverage
+.coverage
+.coverage.*
+*.cover
+
+# Ruff
+.ruff_cache/
+
+# Pytest
+.pytest_cache/
+
+# Virtual environment
+.venv/
+.venv/
+
+# Build artifacts
+dist/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/

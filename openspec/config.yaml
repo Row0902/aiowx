@@ -1,0 +1,51 @@
+# openspec/config.yaml
+schema: spec-driven
+
+context: |
+  Tech stack: Python 3.14+, uv (build), wxPython (GUI), asyncio
+  Architecture: Single-module library providing WxAsyncApp, AsyncBind, StartCoroutine, and dialog helpers
+  Testing: pytest 9.1.0 with pytest-asyncio; coverage via pytest-cov
+  Style: PEP 8, ruff (0.15.17) for linting and formatting
+  CI: GitHub Actions — manual-triggered PyPI publish only (no test CI workflow)
+
+strict_tdd: true
+
+testing:
+  runner:
+    framework: pytest
+    command: "uv run pytest"
+    reason: "pytest 9.1.0 with pytest-asyncio and pytest-cov installed as dev deps"
+  layers:
+    unit: { available: true, tool: "pytest" }
+    integration: { available: false, tool: "" }
+    e2e: { available: false, tool: "" }
+  coverage:
+    available: true
+    command: "uv run pytest --cov=src"
+  quality:
+    linter: { available: true, tool: ruff, command: "ruff check" }
+    type_checker: { available: false, tool: "" }
+    formatter: { available: true, tool: ruff, command: "ruff format" }
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    - Follow existing code patterns
+    tdd: true
+    test_command: "uv run pytest"
+  verify:
+    test_command: "uv run pytest --cov=src"
+    build_command: "uv build"
+    coverage_threshold: 80
+  archive:
+    - Warn before merging destructive deltas
