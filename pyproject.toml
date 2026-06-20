@@ -26,6 +26,13 @@ exclude = [
     "src/examples", # example scripts requiring wxPython display
 ]
 
+[tool.ruff.lint]
+extend-select = ["S"]  # flake8-bandit — security linter rules
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]   # assert is the pytest way
+"test/**" = ["S101"]    # legacy test dir (excluded but just in case)
+
 [dependency-groups]
 dev = [
     "pytest>=9.1.0",
