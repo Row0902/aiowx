@@ -2,9 +2,9 @@ name: Test Python package
 
 on:
   push:
-    branches: [main]
+    branches: [canary, main]
   pull_request:
-    branches: [main]
+    branches: [canary, main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
