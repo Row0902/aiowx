@@ -34,7 +34,7 @@ jobs:
 
   test:
     name: Test (${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     if: github.event_name == 'pull_request' || github.ref_name == 'main'
     strategy:
       fail-fast: false
@@ -43,9 +43,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install wxPython system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libsdl2-dev libnotify-dev freeglut3-dev
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
