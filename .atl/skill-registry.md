@@ -40,6 +40,7 @@ None found (scanned `AGENTS.md`, `CLAUDE.md`, `.cursorrules`, `GEMINI.md`, `copi
 | `skill-creator` | Trigger: new skills, agent instructions, documenting AI usage patterns. Create LLM-first skills with valid frontmatter. | user | `C:\Users\Admin\.config\opencode\skills\skill-creator\SKILL.md` |
 | `skill-improver` | Trigger: improve skills, audit skills, refactor skills, skill quality. Audit and upgrade existing LLM-first skills. | user | `C:\Users\Admin\.config\opencode\skills\skill-improver\SKILL.md` |
 | `work-unit-commits` | Plan commits as reviewable work units. Trigger: implementation, commit splitting, chained PRs, or keeping tests and docs with code. | user | `C:\Users\Admin\.config\opencode\skills\work-unit-commits\SKILL.md` |
+| `aiowx` | Trigger: aiowx, wx async, async wx, wxPython asyncio. Build responsive wxPython GUIs with asyncio using aiowx — subprocess, concurrent I/O, file dialogs, progress. | user | `C:\Users\Admin\.config\opencode\skills\aiowx\SKILL.md` |
 
 ### Excluded from registry
 
