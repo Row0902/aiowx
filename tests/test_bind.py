@@ -91,7 +91,7 @@ class TestAsyncBindIdempotency:
         wx_app.AsyncBind(binder2, handler_b, win)
 
         # Count how many times EVT_WINDOW_DESTROY was bound
-        from aiowx._core import wx
+        import wx
 
         destroy_binds = [c for c in bind_calls if c[0] is wx.EVT_WINDOW_DESTROY]
         assert len(destroy_binds) == 1, (

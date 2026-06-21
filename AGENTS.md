@@ -33,6 +33,8 @@ PREFER:
 - Explicit `Any` imports from `typing` rather than bare names
 - `collections.abc` types (`Callable`, `Coroutine`, `Awaitable`) over `typing` equivalents (Python 3.12+)
 
+Type checks: prefer `isinstance(x, collections.abc.Coroutine)` or `isinstance(x, wx.Window)` over concrete subclasses; avoid `type(x) is`.
+
 ---
 
 ## Naming
@@ -45,7 +47,20 @@ REJECT if:
 - Function/method name is not `snake_case` and is not a verb phrase describing what it does
 - Name uses abbreviations, single letters (except loop `_`, index `i`, `j`), or acronyms without expansion in docstring
 - Two identifiers in the same scope differ only by case (e.g., `user` vs `User`)
-- Boolean variable/parameter name does not start with `is_`, `has_`, `should_`, `can_`, `enable_` (e.g., `is_ready`, not `ready_flag`)
+
+PREFER:
+
+- Boolean variable/parameter name starts with `is_`, `has_`, `should_`, `can_`, `enable_` (e.g., `is_ready`) so it reads as a yes/no question
+- Declarative naming: names express WHAT not HOW; implementation-detail names (e.g., `parse_json_then_validate`) MUST NOT leak into the public API
+- `@dataclass` or `NamedTuple` for grouping related data instead of dicts or long tuples
+
+### Declarative Naming
+
+Public names describe intent and outcome, not mechanics.
+
+- `fetch_user` over `query_db_and_build_user`
+- `parse_config` over `open_file_read_yaml_validate_schema`
+- `is_connected` over `has_socket_been_established`
 
 ---
 
@@ -81,33 +96,33 @@ REJECT if:
 
 REJECT if:
 
-- Function/method body exceeds **20 lines** (excluding blank lines, docstring, and the `def`/`return`/`decorator` lines)
+- Function/method body exceeds **30 lines** (excluding blank lines, docstring, and the `def`/`return`/`decorator` lines)
 - Function/method has more than 5 positional parameters
 - Function does more than one thing (SRP violation — extract helper)
 - Mutating arguments passed by the caller unless the name makes it obvious (e.g., `append_to`, `update`)
 
 ---
 
-## Clean Architecture
+## Library API Design
 
 REJECT if:
 
-- A module in a higher layer imports directly from a module in a deeper layer (dependency inversion violated)
-- Business/domain logic depends on infrastructure details (database, GUI, I/O) instead of depending on abstractions
-- A module exposes internal implementation details through its public API (leaky abstraction)
-- Circular dependencies between layers (presentation ↔ domain ↔ infrastructure)
+- Internal implementation details are exposed through the public API (leaky abstraction)
+- A public name, signature, or behavior changes without a documented compatibility plan
+- `__all__` is missing, incomplete, or re‑exports private modules
 
 REQUIRE:
 
-- Dependencies point **inward**: outer layers (GUI, I/O) depend on inner layers (domain, use‑cases), never the reverse
-- Abstractions (protocols / abstract base classes) are owned by the layer that **uses** them, not the layer that implements them
-- Each layer communicates with the next through a well‑defined interface or boundary
+- The public surface is intentional and versioned: every symbol in `__all__` is supported
+- Breaking changes require a major version bump or a deprecation cycle with `warnings.warn`
+- New public functions/classes start with a stable signature; experiment in private modules first
+- Backward compatibility is preserved unless explicitly approved as a breaking change
 
 PREFER:
 
-- Use‑case / interactor objects over putting business logic directly in GUI event handlers
-- Repository pattern for data access abstractions
-- Dependency injection over hard‑coded concrete dependencies
+- Small, focused public modules over one giant facade
+- Explicit keyword arguments for optional behavior over boolean flags
+- Protocols or abstract base classes for extension points owned by the library, not the caller
 
 ---
 
@@ -118,8 +133,10 @@ REJECT if:
 - Function has **side effects** not obvious from its name (e.g., a function called `get_user` that also writes to a file)
 - Same magic number, string, or constant appears more than once without being named
 - Nested conditionals deeper than **2 levels** — extract guard clauses or early returns
-- `else` block after a `return`, `break`, or `continue` (unreachable or redundant)
+- `else` block after a `return`, `break`, or `continue` when the `else` is unreachable or redundant
 - Long chains of method calls on different objects (Law of Demeter violation — e.g., `a.getB().getC().doSomething()`)
+
+Exception: wxPython event handlers may use `else: event.Skip()` after an early return when the `else` is required for event propagation; document the exception with a comment.
 
 REQUIRE:
 
@@ -146,29 +163,12 @@ REQUIRE:
 
 - Every public async function MUST use `async def` consistently — do not expose a sync wrapper that hides an async implementation
 - `asyncio.get_event_loop()` MUST NOT be used in new code — use `asyncio.get_running_loop()` or `asyncio.run()` instead
+- Use `asyncio.TaskGroup` for related concurrent work (Python 3.11+)
+- Wrap any await that can hang indefinitely with `asyncio.timeout()`
 
 PREFER:
 
 - Keep `async`/`await` at the boundary; internal helpers can be sync when they don't need the event loop
-- Use `asyncio.TaskGroup` over raw `create_task` + manual tracking for related concurrent work (Python 3.11+)
-
----
-
-## Polymorphism & Type Checks
-
-REJECT if:
-
-- `type(x) is` or `type(x) ==` used — always use `isinstance(x, SomeType)`
-- `isinstance` check is too narrow — check against the abstract base class or protocol, not the concrete implementation
-- A subclass overrides a method and changes the contract (broader preconditions, narrower postconditions, new exception types not documented)
-
-REQUIRE:
-
-- `isinstance` checks against abstract / protocol types when available (e.g., `collections.abc.Coroutine`, `wx.Window` over concrete subclasses)
-
-PREFER:
-
-- `@singledispatch` or `@singledispatchmethod` over chains of `isinstance` when dispatching on type
 
 ---
 
@@ -187,7 +187,7 @@ REQUIRE:
 
 ---
 
-## Testing (pytest)
+## Testing
 
 REJECT if:
 
@@ -204,6 +204,50 @@ REQUIRE:
 
 ---
 
+## Ruff Integration
+
+The `[tool.ruff]` configuration in `pyproject.toml` is the machine-enforced subset of these rules. Rule groups and their purpose:
+
+| Group | Purpose |
+|-------|---------|
+| `S` | Security linting (flake8-bandit) |
+| `UP` | pyupgrade — modern Python syntax |
+| `B` | flake8-bugbear — likely bugs and suspicious patterns |
+| `SIM` | flake8-simplify — simplify verbose or redundant constructs |
+| `A` | flake8-builtins — avoid shadowing Python builtins |
+| `RUF` | Ruff-specific rules |
+| `PL` | Pylint — complexity, naming, and design |
+| `D` | pydocstyle — docstring conventions (Google convention) |
+| `FBT` | flake8-boolean-trap — boolean positional args |
+| `TCH` | flake8-type-checking — type-only imports |
+| `PERF` | Perflint — performance anti-patterns |
+
+REQUIRE:
+
+- `ruff check` exits with code 0 before merge
+- A rule MUST NOT be disabled globally without a justification entry in this table
+- When a rule flags existing code that cannot be trivially auto-fixed, add a per-file ignore with an inline comment explaining the exception
+
+---
+
+## Modern Python Features
+
+Use modern syntax where it improves clarity and the project still supports `requires-python`:
+
+| PEP | Feature | Usage |
+|-----|---------|-------|
+| PEP 695 | Generic type parameters | `def func[T](items: list[T]) -> T:` instead of explicit `TypeVar` |
+| PEP 698 | `@override` | Required on methods overriding a parent class method (enabled by RUF rules) |
+| PEP 673 | `Self` return type | Use `Self` for methods returning `self` to support fluent/chained APIs |
+
+REQUIRE:
+
+- New generic code uses PEP 695 syntax
+- Overrides are explicitly marked with `@override`
+- Fluent/chained methods returning `self` use `Self`
+
+---
+
 ## Tools & Authority
 
 | Tool | Responsibility | Rule |
@@ -214,7 +258,7 @@ REQUIRE:
 | `ty` | Type checking | `ty` is the sole authority on type correctness; all type‑hint related rules defer to `ty` output |
 | `pytest` | Testing | `pytest` + `pytest-asyncio` + `pytest-cov` are the only test framework; no other test runner is accepted |
 | `pytest --cov=src` | Coverage | Coverage threshold: ≥80% line coverage on `src/` |
-| `uv` | Build + deps | `uv build` / `uv sync` / `uv run` are the only build commands; no `pip`, `setuptools`, or `poetry` commands
+| `uv` | Build + deps | `uv build` / `uv sync` / `uv run` are the only build commands; no `pip`, `setuptools`, or `poetry` commands |
 
 ---
 

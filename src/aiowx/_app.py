@@ -1,7 +1,8 @@
-"""Core module for aiowx — bridges wxPython GUI event loop with asyncio.
+"""Application core for aiowx — bridges wxPython GUI event loop with asyncio.
 
-Provides WxAsyncApp, AsyncBind, StartCoroutine, and async dialog helpers
-to run coroutines alongside wxPython's event-driven main loop.
+Provides ``WxAsyncApp`` plus module-level ``AsyncBind`` and ``StartCoroutine``
+wrappers. Dialog helpers live in ``aiowx._dialog`` so this module stays focused
+on application lifecycle and task tracking.
 """
 
 from __future__ import annotations
@@ -13,14 +14,23 @@ import warnings
 from asyncio import CancelledError
 from collections import defaultdict
 from collections.abc import Callable, Coroutine
-from typing import Any, TypeAlias
+from dataclasses import dataclass
+from typing import Any
 
 import wx
 import wx.html
 
 IS_MAC: bool = platform.system() == "Darwin"
 
-CoroutineFn: TypeAlias = Callable[..., Coroutine[Any, Any, Any]]
+type CoroutineFn = Callable[..., Coroutine[Any, Any, Any]]
+
+
+@dataclass(frozen=True)
+class _TrackedTask:
+    """Lifecycle handle that connects an asyncio.Task to its wx owner window."""
+
+    task: asyncio.Task[Any]
+    obj: wx.Window
 
 
 class WxAsyncApp(wx.App):
@@ -42,9 +52,7 @@ class WxAsyncApp(wx.App):
         **kwargs: Any,
     ) -> None:
         self.BoundObjects: dict[wx.Window, dict[int, list[Callable[..., Any]]]] = {}
-        self.RunningTasks: defaultdict[wx.Window, set[asyncio.Task[Any]]] = defaultdict(
-            set
-        )
+        self.RunningTasks: defaultdict[wx.Window, set[_TrackedTask]] = defaultdict(set)
         self.exiting: bool = False
         self.ui_idle: bool = True
         self.sleep_duration: float = sleep_duration
@@ -140,9 +148,9 @@ class WxAsyncApp(wx.App):
                 wx.EVT_WINDOW_DESTROY, lambda event: self.OnDestroy(event, obj), obj
             )
         task: asyncio.Task[Any] = asyncio.create_task(coroutine)  # type: ignore
-        setattr(task, "obj", obj)
+        tracked = _TrackedTask(task=task, obj=obj)
         task.add_done_callback(self.OnTaskCompleted)
-        self.RunningTasks[obj].add(task)
+        self.RunningTasks[obj].add(tracked)
         return task
 
     def OnTaskCompleted(self, task: asyncio.Task[Any]) -> None:
@@ -157,24 +165,31 @@ class WxAsyncApp(wx.App):
         except CancelledError:
             pass
         except Exception as exc:
-            warnings.warn(f"Exception in async callback: {exc!r}", RuntimeWarning)
+            warnings.warn(
+                f"Exception in async callback: {exc!r}", RuntimeWarning, stacklevel=2
+            )
         finally:
-            obj = getattr(task, "obj", None)
-            if obj is not None:
-                tasks = self.RunningTasks.get(obj)
-                if tasks is not None:
-                    tasks.discard(task)
-                    if not tasks:
+            for obj, tracked_set in list(self.RunningTasks.items()):
+                tracked = next(
+                    (tracked for tracked in tracked_set if tracked.task is task), None
+                )
+                if tracked is not None:
+                    tracked_set.discard(tracked)
+                    if not tracked_set:
                         del self.RunningTasks[obj]
+                    break
 
     def OnDestroy(self, event: wx.WindowDestroyEvent, obj: wx.Window) -> None:
         """Cancel all running tasks for a window and clean up its bindings."""
-        tasks = list(self.RunningTasks.get(obj, set()))
-        for task in tasks:
-            if not task.done():
-                task.cancel()
+        tracked_tasks = list(self.RunningTasks.get(obj, set()))
+        for tracked in tracked_tasks:
+            if not tracked.task.done():
+                tracked.task.cancel()
                 if self.warn_on_cancel_callback:
-                    warnings.warn("cancelling callback" + str(obj) + str(task))
+                    warnings.warn(
+                        "cancelling callback" + str(obj) + str(tracked.task),
+                        stacklevel=2,
+                    )
         del self.BoundObjects[obj]
         if obj in self.RunningTasks:
             del self.RunningTasks[obj]
@@ -211,116 +226,3 @@ def StartCoroutine(
     if not isinstance(app, WxAsyncApp):
         raise Exception("Create a 'WxAsyncApp' first")
     return app.StartCoroutine(coroutine, obj)
-
-
-async def ShowModalInExecutor(dialog: wx.Dialog) -> int:
-    """Show a modal OS dialog on the wx main thread and await its return code.
-
-    Schedules ``dialog.ShowModal()`` via ``wx.CallAfter`` so the GUI call always
-    runs on the wx main thread. The result is delivered through an
-    ``asyncio.Future``. The asyncio event loop blocks while the modal dialog
-    runs its nested wx event loop; this is expected single-threaded modal
-    behavior.
-
-    Required for dialogs like wx.FileDialog, wx.DirDialog, etc.
-    """
-    loop = asyncio.get_running_loop()
-    future: asyncio.Future[int] = loop.create_future()
-
-    def on_main_thread() -> None:
-        try:
-            result = dialog.ShowModal()
-        except Exception as exc:
-            future.set_exception(exc)
-        else:
-            future.set_result(result)
-
-    wx.CallAfter(on_main_thread)
-    return await future
-
-
-async def AsyncShowDialog(dialog: wx.Dialog) -> int:
-    """Show a dialog in async modless mode and wait for its result.
-
-    Raises:
-        Exception: If the dialog type does not support modless display;
-                   use AsyncShowDialogModal for those.
-    """
-    if not isinstance(
-        dialog,
-        (
-            wx.FileDialog,
-            wx.DirDialog,
-            wx.FontDialog,
-            wx.ColourDialog,
-            wx.MessageDialog,
-        ),
-    ):
-        closed = asyncio.Event()
-
-        def end_dialog(return_code: int) -> None:
-            dialog.SetReturnCode(return_code)
-            dialog.Hide()
-            closed.set()
-
-        async def on_button(event: wx.CommandEvent) -> None:
-            id = event.GetId()
-            if id == dialog.GetAffirmativeId():
-                if dialog.Validate() and dialog.TransferDataFromWindow():
-                    end_dialog(id)
-            elif id == wx.ID_APPLY:
-                if dialog.Validate():
-                    dialog.TransferDataFromWindow()
-            elif id == dialog.GetEscapeId() or (
-                id == wx.ID_CANCEL and dialog.GetEscapeId() == wx.ID_ANY
-            ):
-                end_dialog(wx.ID_CANCEL)
-            else:
-                event.Skip()
-
-        async def on_close(event: wx.CloseEvent) -> None:
-            closed.set()
-            dialog.Hide()
-
-        AsyncBind(wx.EVT_CLOSE, on_close, dialog)
-        AsyncBind(wx.EVT_BUTTON, on_button, dialog)
-        dialog.Show()
-        await closed.wait()
-        return dialog.GetReturnCode()
-
-    raise Exception(
-        "This type of dialog cannot be shown modless, please use 'AsyncShowDialogModal'"
-    )
-
-
-async def AsyncShowDialogModal(dialog: wx.Dialog) -> int:
-    """Show a dialog in modal mode.
-
-    OS-level dialogs (FileDialog, DirDialog, etc.) are run via ShowModalInExecutor.
-    Other dialogs disable parent frames, show modless, and re-enable on close.
-    """
-    if isinstance(
-        dialog,
-        (
-            wx.html.HtmlHelpDialog,
-            wx.FileDialog,
-            wx.DirDialog,
-            wx.FontDialog,
-            wx.ColourDialog,
-            wx.MessageDialog,
-        ),
-    ):
-        return await ShowModalInExecutor(dialog)
-
-    frames = set(wx.GetTopLevelWindows()) - {dialog}  # type: ignore
-    states = {frame: frame.IsEnabled() for frame in frames}
-    try:
-        for frame in frames:
-            frame.Disable()
-        return await AsyncShowDialog(dialog)
-    finally:
-        for frame in frames:
-            frame.Enable(states[frame])
-        parent = dialog.GetParent()
-        if parent:
-            parent.SetFocus()

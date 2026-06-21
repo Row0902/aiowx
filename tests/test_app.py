@@ -20,14 +20,14 @@ class TestWxAsyncAppInit:
         assert len(wx_app.BoundObjects) == 0
 
     def test_init_custom_params(self) -> None:
-        from aiowx._core import WxAsyncApp
+        from aiowx._app import WxAsyncApp
 
         app = WxAsyncApp(warn_on_cancel_callback=True, sleep_duration=0.05)
         assert app.warn_on_cancel_callback is True
         assert app.sleep_duration == 0.05
 
     def test_init_calls_set_exit_on_frame_delete(self) -> None:
-        from aiowx._core import WxAsyncApp
+        from aiowx._app import WxAsyncApp
 
         spy = MagicMock()
         app = WxAsyncApp.__new__(WxAsyncApp)
@@ -52,7 +52,7 @@ class TestMainLoopNonMac:
         """Non-Mac path: Pending() returns True once → Dispatch() called → then exits."""
         set_is_mac(False)
 
-        from aiowx._core import wx
+        import wx
 
         dispatch_spy = MagicMock()
         pending_calls = [True, False]  # First call: True, second: False
@@ -93,7 +93,7 @@ class TestMainLoopMac:
     ) -> None:
         set_is_mac(True)
 
-        from aiowx._core import wx
+        import wx
 
         dispatch_timeout_spy = MagicMock()
         pending_spy = MagicMock()

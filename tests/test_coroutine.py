@@ -56,7 +56,8 @@ class TestStartCoroutine:
             await asyncio.sleep(999)
 
         task = wx_app.StartCoroutine(long_coro(), win)
-        assert task in wx_app.RunningTasks[win]
+        tracked_tasks = wx_app.RunningTasks[win]
+        assert any(tracked.task is task for tracked in tracked_tasks)
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
@@ -90,7 +91,7 @@ class TestOnDestroy:
         assert win not in wx_app.BoundObjects
 
     async def test_warn_on_cancel_callback(self) -> None:
-        from aiowx._core import WxAsyncApp
+        from aiowx._app import WxAsyncApp
 
         app = WxAsyncApp(warn_on_cancel_callback=True)
         win = wx.Window()
@@ -204,12 +205,14 @@ class TestOnTaskCompleted:
         async def immediate_coro():
             return 42
 
+        from aiowx._app import _TrackedTask
+
         task1 = wx_app.StartCoroutine(long_coro(), win)
         task2 = wx_app.StartCoroutine(immediate_coro(), win)
         # Let task2 complete and fire its done callback, then re-insert it
         # to simulate a callback that fires mid-iteration during OnDestroy.
         await task2
-        wx_app.RunningTasks[win].add(task2)
+        wx_app.RunningTasks[win].add(_TrackedTask(task=task2, obj=win))
 
         original_cancel = task1.cancel
 
