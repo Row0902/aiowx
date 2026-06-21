@@ -4,7 +4,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/aiowx)](https://pypi.org/project/aiowx/)
 ![Python](https://img.shields.io/badge/python-3.12+-blue)
-[![CI](https://github.com/Row0902/aiowx/actions/workflows/ci.yml/badge.svg)](https://github.com/Row0902/aiowx/actions/workflows/ci.yml)
+[![CI](https://github.com/Row0902/aiowx/actions/workflows/test.yml/badge.svg)](https://github.com/Row0902/aiowx/actions/workflows/test.yml)
 
 ## Installation
 
@@ -65,6 +65,19 @@ async def main():
 
 asyncio.run(main())
 ```
+
+---
+
+## Architecture (v0.3.0)
+
+aiowx is organized into two internal modules:
+
+| Module | Responsibility |
+|--------|---------------|
+| `_app.py` | `WxAsyncApp` with event loop, async binding, task lifecycle, and `_TrackedTask` state |
+| `_dialog.py` | `ShowModalAsync`, `AsyncShowDialog`, `AsyncShowDialogModal` — pure dialog helpers |
+
+The public API surface is stable — all 5 symbols (`WxAsyncApp`, `AsyncBind`, `StartCoroutine`, `AsyncShowDialog`, `AsyncShowDialogModal`) re-export from `aiowx`. Internal modules are prefixed with `_` and not part of `__all__`.
 
 ---
 
