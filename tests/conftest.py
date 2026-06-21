@@ -9,9 +9,13 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
+
+if TYPE_CHECKING:
+    from aiowx._core import WxAsyncApp
 
 # ---------------------------------------------------------------------------
 # Stub classes — real types so isinstance() and type() checks work correctly
@@ -23,7 +27,7 @@ class WxAppStub:
 
     _instance: WxAppStub | None = None
 
-    def __init__(self, **kwargs) -> None:  # noqa: ARG002
+    def __init__(self, **kwargs) -> None:
         WxAppStub._instance = self
 
     # wx.App public surface used by _core.py
@@ -217,7 +221,7 @@ def set_is_mac(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture()
-def wx_app() -> "WxAsyncApp":  # type: ignore[name-defined]  # noqa: F821
+def wx_app() -> WxAsyncApp:
     """Create a fresh WxAsyncApp instance for each test."""
     from aiowx._core import WxAsyncApp
 

@@ -13,14 +13,14 @@ import warnings
 from asyncio import CancelledError
 from collections import defaultdict
 from collections.abc import Callable, Coroutine
-from typing import Any, TypeAlias
+from typing import Any
 
 import wx
 import wx.html
 
 IS_MAC: bool = platform.system() == "Darwin"
 
-CoroutineFn: TypeAlias = Callable[..., Coroutine[Any, Any, Any]]
+type CoroutineFn = Callable[..., Coroutine[Any, Any, Any]]
 
 
 class WxAsyncApp(wx.App):
@@ -157,7 +157,9 @@ class WxAsyncApp(wx.App):
         except CancelledError:
             pass
         except Exception as exc:
-            warnings.warn(f"Exception in async callback: {exc!r}", RuntimeWarning)
+            warnings.warn(
+                f"Exception in async callback: {exc!r}", RuntimeWarning, stacklevel=2
+            )
         finally:
             obj = getattr(task, "obj", None)
             if obj is not None:
@@ -174,7 +176,10 @@ class WxAsyncApp(wx.App):
             if not task.done():
                 task.cancel()
                 if self.warn_on_cancel_callback:
-                    warnings.warn("cancelling callback" + str(obj) + str(task))
+                    warnings.warn(
+                        "cancelling callback" + str(obj) + str(task),
+                        stacklevel=2,
+                    )
         del self.BoundObjects[obj]
         if obj in self.RunningTasks:
             del self.RunningTasks[obj]
