@@ -21,17 +21,53 @@ testpaths = ["tests"]
 omit = ["src/examples/*"]
 
 [tool.ruff]
+target-version = "py314"
 exclude = [
     "test",         # legacy perf tests / PoC (archived in Phase 3)
     "src/examples", # example scripts requiring wxPython display
 ]
 
 [tool.ruff.lint]
-extend-select = ["S"]  # flake8-bandit — security linter rules
+extend-select = [
+    "S",    # flake8-bandit — security linting
+    "UP",   # pyupgrade — modern Python syntax
+    "B",    # flake8-bugbear — likely bugs and suspicious patterns
+    "SIM",  # flake8-simplify — simplify verbose or redundant constructs
+    "A",    # flake8-builtins — avoid shadowing Python builtins
+    "RUF",  # Ruff-specific rules
+    "PL",   # Pylint — complexity, naming, and design
+    "D",    # pydocstyle — docstring conventions
+    "FBT",  # flake8-boolean-trap — boolean positional args
+    "TCH",  # flake8-type-checking — type-only imports
+    "PERF", # Perflint — performance anti-patterns
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.pylint]
+max-statements = 40
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101"]   # assert is the pytest way
+"tests/**" = [
+    "S101",   # assert is the pytest way
+    "D100", "D101", "D102", "D103", "D105", "D107",  # test names are descriptive
+    "D200", "D212",   # existing multiline module docstrings
+    "RUF002",         # en dash in existing module docstrings
+    "PLC0415",        # tests import inside fixtures to avoid wx side effects
+    "PLR2004",        # literal values are idiomatic in tests
+    "FBT001", "FBT002", "FBT003",  # pytest fixtures/assertions use booleans
+    "RUF043",         # existing tests use plain string match patterns
+    "TC003",          # type hints in test stubs need runtime import
+]
 "test/**" = ["S101"]    # legacy test dir (excluded but just in case)
+"src/aiowx/_core.py" = [
+    "A001", "A002",  # wx API convention uses `id` parameter
+    "FBT001", "FBT002",  # warn_on_cancel_callback is part of stable public API
+    "FBT003",        # wx API calls use positional boolean flags by convention
+    "PLR0913",       # wx event bindings mirror wx's multi-parameter signatures
+    "B010",          # dynamic `obj` attribute on asyncio.Task avoids type-checker false positive
+]
 
 [dependency-groups]
 dev = [
