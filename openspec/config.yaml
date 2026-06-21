@@ -6,7 +6,7 @@ context: |
   Architecture: Single-module library providing WxAsyncApp, AsyncBind, StartCoroutine, and dialog helpers
   Testing: pytest 9.1.0 with pytest-asyncio; coverage via pytest-cov
   Style: PEP 8, ruff (0.15.17) for linting and formatting
-  CI: GitHub Actions — manual-triggered PyPI publish only (no test CI workflow)
+  CI: GitHub Actions — test workflow runs on push/PR to canary/main (ruff lint, ruff format, ty type check, pytest --cov=src on 3.12/3.13/3.14 windows-latest); manual-triggered PyPI publish workflow
 
 strict_tdd: true
 
@@ -24,7 +24,7 @@ testing:
     command: "uv run pytest --cov=src"
   quality:
     linter: { available: true, tool: ruff, command: "ruff check" }
-    type_checker: { available: false, tool: "" }
+    type_checker: { available: true, tool: ty, command: "uv run ty check src/aiowx/" }
     formatter: { available: true, tool: ruff, command: "ruff format" }
 
 rules:
