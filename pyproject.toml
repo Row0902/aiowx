@@ -60,7 +60,6 @@ max-statements = 40
     "RUF043",         # existing tests use plain string match patterns
     "TC003",          # type hints in test stubs need runtime import
 ]
-"test/**" = ["S101"]    # legacy test dir (excluded but just in case)
 "src/aiowx/_core.py" = [
     "A001", "A002",  # wx API convention uses `id` parameter
     "FBT001", "FBT002",  # warn_on_cancel_callback is part of stable public API
