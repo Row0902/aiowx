@@ -211,7 +211,7 @@ class DashboardFrame(wx.Frame):
             result = t.result()
             if result.data:
                 q = result.data
-                idx = self._stock_list.AppendItem(q.symbol)
+                idx = self._stock_list.InsertItem(self._stock_list.ItemCount, q.symbol)
                 self._stock_list.SetItem(idx, 1, f"${q.price:.2f}")
                 sign = "+" if q.change_pct >= 0 else ""
                 self._stock_list.SetItem(idx, 2, f"{sign}{q.change_pct:.2f}%")
@@ -285,7 +285,7 @@ class DashboardFrame(wx.Frame):
         self._download_list.Freeze()
         self._download_list.DeleteAllItems()
         for j in jobs:
-            idx = self._download_list.AppendItem(j.name)
+            idx = self._download_list.InsertItem(self._download_list.ItemCount, j.name)
             self._download_list.SetItem(idx, 1, f"{j.size_mb:.0f} MB")
             self._download_list.SetItem(idx, 2, "0%")
             self._download_list.SetItem(idx, 3, "pending")
