@@ -46,13 +46,22 @@ def test_ruff_pydocstyle_convention(pyproject_data: dict[str, Any]) -> None:
     )
 
 
-def test_ruff_core_per_file_ignores(pyproject_data: dict[str, Any]) -> None:
-    """_core.py must be exempt from A001 and A002 because wx uses id."""
+def test_ruff_app_per_file_ignores(pyproject_data: dict[str, Any]) -> None:
+    """_app.py must be exempt from A001 and A002 because wx uses id."""
     ignores = pyproject_data["tool"]["ruff"]["lint"]["per-file-ignores"]
-    key = "src/aiowx/_core.py"
+    key = "src/aiowx/_app.py"
     assert key in ignores, f"Missing per-file ignore for {key}"
     assert "A001" in ignores[key]
     assert "A002" in ignores[key]
+
+
+def test_ruff_dialog_per_file_ignores(pyproject_data: dict[str, Any]) -> None:
+    """_dialog.py must be exempt from FBT001 and FBT002 for wx dialog flags."""
+    ignores = pyproject_data["tool"]["ruff"]["lint"]["per-file-ignores"]
+    key = "src/aiowx/_dialog.py"
+    assert key in ignores, f"Missing per-file ignore for {key}"
+    assert "FBT001" in ignores[key]
+    assert "FBT002" in ignores[key]
 
 
 def test_ruff_pylint_max_statements(pyproject_data: dict[str, Any]) -> None:

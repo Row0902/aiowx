@@ -11,10 +11,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import wx
-from aiowx._core import (
+from aiowx._dialog import (
     AsyncShowDialog,
     AsyncShowDialogModal,
-    ShowModalInExecutor,
+    ShowModalAsync,
 )
 
 from tests.conftest import (
@@ -58,7 +58,7 @@ class TestAsyncShowDialogHappyPath:
         def mock_async_bind(event, handler, obj, **kwargs):
             handlers[event] = handler
 
-        with patch("aiowx._core.AsyncBind", side_effect=mock_async_bind):
+        with patch("aiowx._dialog.AsyncBind", side_effect=mock_async_bind):
             task = asyncio.create_task(AsyncShowDialog(dlg))
             # Yield to let the task run up to await closed.wait()
             await asyncio.sleep(0)
@@ -84,7 +84,7 @@ class TestAsyncShowDialogHappyPath:
 
 
 class TestAsyncShowDialogModalOSDialogs:
-    """T12: OS-dialog types route to ShowModalInExecutor (wx.CallAfter dispatch, no run_in_executor)."""
+    """T12: OS-dialog types route to ShowModalAsync (wx.CallAfter dispatch, no run_in_executor)."""
 
     @pytest.mark.parametrize(
         "dialog_cls",
@@ -98,7 +98,7 @@ class TestAsyncShowDialogModalOSDialogs:
         ],
     )
     async def test_os_dialog_routes_through_showmodal(self, dialog_cls, wx_app) -> None:
-        """T12: OS dialogs route to ShowModalInExecutor and return its result."""
+        """T12: OS dialogs route to ShowModalAsync and return its result."""
         dlg = dialog_cls()
         dlg.ShowModal = MagicMock(return_value=42)
         callbacks: list[Callable[[], None]] = []
@@ -115,7 +115,7 @@ class TestAsyncShowDialogModalOSDialogs:
         assert result == 42
 
     async def test_showmodal_in_executor_uses_callafter(self, wx_app) -> None:
-        """T7: ShowModalInExecutor schedules dialog.ShowModal via wx.CallAfter."""
+        """T7: ShowModalAsync schedules dialog.ShowModal via wx.CallAfter."""
         dlg = WxDialogStub()
         dlg.ShowModal = MagicMock(return_value=42)
         callbacks: list[Callable[[], None]] = []
@@ -124,7 +124,7 @@ class TestAsyncShowDialogModalOSDialogs:
             callbacks.append(callback)
 
         with patch("wx.CallAfter", side_effect=capture_callafter):
-            task = asyncio.create_task(ShowModalInExecutor(dlg))
+            task = asyncio.create_task(ShowModalAsync(dlg))
             await asyncio.sleep(0)
 
             assert len(callbacks) == 1
@@ -136,7 +136,7 @@ class TestAsyncShowDialogModalOSDialogs:
         assert result == 42
 
     async def test_showmodal_in_executor_avoids_run_in_executor(self, wx_app) -> None:
-        """T7: ShowModalInExecutor does not use asyncio's thread executor."""
+        """T7: ShowModalAsync does not use asyncio's thread executor."""
         dlg = WxDialogStub()
         dlg.ShowModal = MagicMock(return_value=42)
         callbacks: list[Callable[[], None]] = []
@@ -148,7 +148,7 @@ class TestAsyncShowDialogModalOSDialogs:
             patch("wx.CallAfter", side_effect=capture_callafter),
             patch.object(asyncio.AbstractEventLoop, "run_in_executor") as mock_executor,
         ):
-            task = asyncio.create_task(ShowModalInExecutor(dlg))
+            task = asyncio.create_task(ShowModalAsync(dlg))
             await asyncio.sleep(0)
             callbacks[0]()
             result = await task
@@ -167,7 +167,7 @@ class TestAsyncShowDialogModalOSDialogs:
             callbacks.append(callback)
 
         with patch("wx.CallAfter", side_effect=capture_callafter):
-            task = asyncio.create_task(ShowModalInExecutor(dlg))
+            task = asyncio.create_task(ShowModalAsync(dlg))
             await asyncio.sleep(0)
             callbacks[0]()
             result = await task
@@ -184,7 +184,7 @@ class TestAsyncShowDialogModalOSDialogs:
             callbacks.append(callback)
 
         with patch("wx.CallAfter", side_effect=capture_callafter):
-            task = asyncio.create_task(ShowModalInExecutor(dlg))
+            task = asyncio.create_task(ShowModalAsync(dlg))
             await asyncio.sleep(0)
             callbacks[0]()
 
@@ -222,7 +222,7 @@ class TestAsyncShowDialogModalRegular:
 
         with (
             patch.object(wx, "GetTopLevelWindows", return_value=[frame1, frame2, dlg]),
-            patch("aiowx._core.AsyncBind", side_effect=mock_async_bind),
+            patch("aiowx._dialog.AsyncBind", side_effect=mock_async_bind),
         ):
             task = asyncio.create_task(AsyncShowDialogModal(dlg))
             await asyncio.sleep(0)

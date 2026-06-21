@@ -6,13 +6,8 @@ wxPython application.
 
 from __future__ import annotations
 
-from aiowx._core import (
-    AsyncBind,
-    AsyncShowDialog,
-    AsyncShowDialogModal,
-    StartCoroutine,
-    WxAsyncApp,
-)
+from aiowx._app import AsyncBind, StartCoroutine, WxAsyncApp
+from aiowx._dialog import AsyncShowDialog, AsyncShowDialogModal
 
 __all__ = [
     "AsyncBind",

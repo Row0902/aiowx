@@ -2,7 +2,7 @@
 conftest.py — wx stub infrastructure for headless unit tests.
 
 Installs a MagicMock-backed ``wx`` module into ``sys.modules`` **before**
-any ``aiowx._core`` import happens during test collection.
+any ``aiowx`` import happens during test collection.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from unittest.mock import MagicMock
 import pytest
 
 if TYPE_CHECKING:
-    from aiowx._core import WxAsyncApp
+    from aiowx._app import WxAsyncApp
 
 # ---------------------------------------------------------------------------
 # Stub classes — real types so isinstance() and type() checks work correctly
@@ -30,7 +30,7 @@ class WxAppStub:
     def __init__(self, **kwargs) -> None:
         WxAppStub._instance = self
 
-    # wx.App public surface used by _core.py
+    # wx.App public surface used by _app.py
     def SetExitOnFrameDelete(self, flag: bool) -> None: ...
     def ProcessPendingEvents(self) -> None: ...
     def OnExit(self) -> None: ...
@@ -210,12 +210,12 @@ def _patch_asyncio_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture()
 def set_is_mac(monkeypatch: pytest.MonkeyPatch):
-    """Fixture to control IS_MAC flag in aiowx._core per-test."""
+    """Fixture to control IS_MAC flag in aiowx._app per-test."""
 
     def _set(is_mac: bool) -> None:
-        import aiowx._core as core
+        import aiowx._app as app
 
-        monkeypatch.setattr(core, "IS_MAC", is_mac)
+        monkeypatch.setattr(app, "IS_MAC", is_mac)
 
     return _set
 
@@ -223,7 +223,7 @@ def set_is_mac(monkeypatch: pytest.MonkeyPatch):
 @pytest.fixture()
 def wx_app() -> WxAsyncApp:
     """Create a fresh WxAsyncApp instance for each test."""
-    from aiowx._core import WxAsyncApp
+    from aiowx._app import WxAsyncApp
 
     app = WxAsyncApp()
     return app
