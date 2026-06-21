@@ -66,19 +66,32 @@ class WxAsyncApp(wx.App):
         Polls wx.GUIEventLoop for pending events on non-Mac platforms.
         On Mac, uses DispatchTimeout(0) because Pending() always returns True.
         Exits when ExitMainLoop() sets the exiting flag.
+
+        Unlike the original aiowx implementation, this loop processes
+        **all** pending wx events in a batch before yielding to asyncio,
+        instead of yielding after every single event.  This eliminates
+        the micro-latency that the per-event yield introduced during
+        rapid input sequences (keyboard repeat, mouse scrolling).
         """
         event_loop = wx.GUIEventLoop()
         with wx.EventLoopActivator(event_loop):
             while not self.exiting:
+                processed = False
                 if IS_MAC:
                     event_loop.DispatchTimeout(0)
-                    self.ui_idle = False
+                    processed = True
                 else:
                     while event_loop.Pending():
                         event_loop.Dispatch()
-                        await asyncio.sleep(0)
-                        self.ui_idle = False
-                await asyncio.sleep(self.sleep_duration)
+                        processed = True
+                # Yield to asyncio once after processing all pending wx
+                # events.  When no events were processed, sleep the full
+                # polling interval to avoid busy-waiting.
+                if processed:
+                    await asyncio.sleep(0)
+                    self.ui_idle = False
+                else:
+                    await asyncio.sleep(self.sleep_duration)
                 self.ProcessPendingEvents()
                 if not self.ui_idle:
                     event_loop.ProcessIdle()
