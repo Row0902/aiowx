@@ -190,7 +190,6 @@ class DashboardFrame(wx.Frame):
     async def _on_refresh_stocks(self, event: wx.CommandEvent | None = None) -> None:
         """Fetch 6 stock quotes concurrently using TaskGroup with timeout."""
         symbols = ["AAPL", "GOOGL", "MSFT", "AMZN", "NVDA", "TSLA"]
-        self._stock_list.DeleteAllItems()
         self._status_stocks.SetLabel("⏳ Fetching...")
         self._btn_refresh.Enable(False)
         self.SetStatusText("Fetching stock data...")
@@ -200,12 +199,13 @@ class DashboardFrame(wx.Frame):
             async with asyncio.TaskGroup() as tg:
                 tasks = {sym: tg.create_task(fetch_stock_quote(sym)) for sym in symbols}
         except ExceptionGroup as exc_group:
-            # TaskGroup surfaces all exceptions together
             for exc in exc_group.exceptions:
                 wx.MessageBox(str(exc), "Fetch Error", wx.OK | wx.ICON_WARNING)
 
         elapsed = (time.perf_counter() - start) * 1000
 
+        # Batch the full list refresh — one paint cycle instead of six.
+        self._stock_list.Freeze()
         self._stock_list.DeleteAllItems()
         for t in tasks.values():
             result = t.result()
@@ -217,6 +217,7 @@ class DashboardFrame(wx.Frame):
                 self._stock_list.SetItem(idx, 2, f"{sign}{q.change_pct:.2f}%")
                 self._stock_list.SetItem(idx, 3, f"{q.volume:,}")
                 self._stock_list.SetItem(idx, 4, f"{result.latency_ms:.0f}ms")
+        self._stock_list.Thaw()
 
         self._status_stocks.SetLabel(
             f"✅ {sum(1 for t in tasks.values() if t.result().data)}/"
@@ -281,18 +282,21 @@ class DashboardFrame(wx.Frame):
             DownloadJob(6, "Update-patch.msi", 64.0),
         ]
 
+        self._download_list.Freeze()
         self._download_list.DeleteAllItems()
         for j in jobs:
             idx = self._download_list.AppendItem(j.name)
             self._download_list.SetItem(idx, 1, f"{j.size_mb:.0f} MB")
             self._download_list.SetItem(idx, 2, "0%")
             self._download_list.SetItem(idx, 3, "pending")
+        self._download_list.Thaw()
 
         self._btn_download.Enable(False)
         self._global_progress.SetValue(0)
         self._status_batch.SetLabel("⏳ Downloading...")
         completed = 0
         total = len(jobs)
+        last_reported = [0.0]  # use list for mutable closure
 
         sem = asyncio.Semaphore(3)
 
@@ -301,11 +305,15 @@ class DashboardFrame(wx.Frame):
             async with sem:
 
                 async def update_progress(pct: float) -> None:
+                    # Throttle: only push to wx when crossing 10% thresholds.
+                    bucket = (pct // 10) * 10
+                    if bucket <= last_reported[0]:
+                        return
+                    last_reported[0] = bucket
                     idx = jobs.index(job)
-                    self._download_list.SetItem(idx, 2, f"{pct:.0f}%")
+                    self._download_list.SetItem(idx, 2, f"{bucket:.0f}%")
                     overall = sum(j.progress for j in jobs) / (total * 100) * 100
                     self._global_progress.SetValue(int(overall))
-                    await asyncio.sleep(0)
 
                 await batch_download(job, update_progress)
                 idx = jobs.index(job)
@@ -451,11 +459,12 @@ class DashboardFrame(wx.Frame):
         self._monitor_log.AppendText(
             f"[{time.strftime('%H:%M:%S')}] 🔍 Health poller started\n",
         )
+        poll_count = 0
         while self._poller_running:
             await asyncio.sleep(5)
             if not self._poller_running:
                 break
-            # Simulate checking service health
+            poll_count += 1
             db_ok = random.random() > 0.15
             api_ok = random.random() > 0.10
             status = (
@@ -468,8 +477,12 @@ class DashboardFrame(wx.Frame):
                 else "❌ Multiple services down"
             )
             self._monitor_log.AppendText(
-                f"[{time.strftime('%H:%M:%S')}] {status}\n",
+                f"[{time.strftime('%H:%M:%S')}] [{poll_count}] {status}\n",
             )
+            # Keep the log lean — trim to last 50 lines.
+            count = self._monitor_log.GetNumberOfLines()
+            if count > 50:
+                self._monitor_log.Remove(0, self._monitor_log.GetLineLength(0) + 1)
 
     async def _on_stop_poller(self, event: wx.CommandEvent) -> None:
         """Stop the health-check poller."""
