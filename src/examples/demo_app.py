@@ -113,8 +113,8 @@ class MainFrame(wx.Frame):
         root.Add(spawn_box, 0, wx.EXPAND | wx.ALL, 6)
 
         # --- Status bar ---
-        self.status_bar = panel.CreateStatusBar(1)
-        self.status_bar.SetStatusText("Ready")
+        self.CreateStatusBar(1)
+        self.SetStatusText("Ready")
 
         panel.SetSizer(root)
         panel.Layout()
@@ -143,7 +143,7 @@ class MainFrame(wx.Frame):
             self.sensor_label.SetLabel(
                 f"🌡️ {reading.temperature:.1f}°C  💧 {reading.humidity:.1f}%",
             )
-            self.status_bar.SetStatusText(f"Sensor @ {time.strftime('%H:%M:%S')}")
+            self.SetStatusText(f"Sensor @ {time.strftime('%H:%M:%S')}")
             await asyncio.sleep(2)
 
     # ── Event handlers ─────────────────────────────────────────────
@@ -151,12 +151,12 @@ class MainFrame(wx.Frame):
     async def _on_click(self, event: wx.CommandEvent) -> None:
         """Demonstrate AsyncBind with an async callback."""
         self.click_result.SetLabel("⏳ Working...")
-        self.status_bar.SetStatusText("Async callback running...")
+        self.SetStatusText("Async callback running...")
         await asyncio.sleep(0.5)
         self.click_result.SetLabel("✅ Done!")
         await asyncio.sleep(2)
         self.click_result.SetLabel("")
-        self.status_bar.SetStatusText("Ready")
+        self.SetStatusText("Ready")
         event.Skip()
 
     async def _on_custom_dialog(self, event: wx.CommandEvent) -> None:
