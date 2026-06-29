@@ -45,7 +45,7 @@ async def AsyncShowDialog(dialog: wx.Dialog) -> int:
     """Show a dialog in async modeless mode and wait for its result.
 
     Raises:
-        Exception: If the dialog type does not support modeless display;
+        TypeError: If the dialog type does not support modeless display;
                    use AsyncShowDialogModal for those.
     """
     if not isinstance(
@@ -81,8 +81,9 @@ async def AsyncShowDialog(dialog: wx.Dialog) -> int:
                 event.Skip()
 
         async def on_close(event: wx.CloseEvent) -> None:
-            closed.set()
+            dialog.SetReturnCode(dialog.GetEscapeId() or wx.ID_CANCEL)
             dialog.Hide()
+            closed.set()
 
         AsyncBind(wx.EVT_CLOSE, on_close, dialog)
         AsyncBind(wx.EVT_BUTTON, on_button, dialog)
@@ -90,8 +91,8 @@ async def AsyncShowDialog(dialog: wx.Dialog) -> int:
         await closed.wait()
         return dialog.GetReturnCode()
 
-    raise Exception(
-        "This type of dialog cannot be shown modless, please use 'AsyncShowDialogModal'"
+    raise TypeError(
+        "This type of dialog cannot be shown modeless, please use 'AsyncShowDialogModal'"
     )
 
 
@@ -122,7 +123,9 @@ async def AsyncShowDialogModal(dialog: wx.Dialog) -> int:
         return await AsyncShowDialog(dialog)
     finally:
         for frame in frames:
-            frame.Enable(states[frame])
-        parent = dialog.GetParent()
-        if parent:
-            parent.SetFocus()
+            if not frame.IsBeingDeleted():
+                frame.Enable(states.get(frame, True))
+        if not dialog.IsBeingDeleted():
+            parent = dialog.GetParent()
+            if parent and not parent.IsBeingDeleted():
+                parent.SetFocus()

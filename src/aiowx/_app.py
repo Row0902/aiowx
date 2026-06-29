@@ -39,8 +39,8 @@ class WxAsyncApp(wx.App):
     Attributes:
         BoundObjects: Tracks registered event bindings per window for cleanup on destroy.
         RunningTasks: Tracks active asyncio tasks per window for cancellation on destroy.
+        _task_index: Reverse mapping from asyncio.Task to _TrackedTask for O(1) completion lookup.
         exiting: Flag to signal MainLoop to stop.
-        ui_idle: Tracks whether idle processing is pending.
         sleep_duration: Sleep interval between wx event processing cycles.
         warn_on_cancel_callback: If True, emit warning when canceling a callback on destroy.
     """
@@ -53,8 +53,8 @@ class WxAsyncApp(wx.App):
     ) -> None:
         self.BoundObjects: dict[wx.Window, dict[int, list[Callable[..., Any]]]] = {}
         self.RunningTasks: defaultdict[wx.Window, set[_TrackedTask]] = defaultdict(set)
+        self._task_index: dict[asyncio.Task[Any], _TrackedTask] = {}
         self.exiting: bool = False
-        self.ui_idle: bool = True
         self.sleep_duration: float = sleep_duration
         self.warn_on_cancel_callback: bool = warn_on_cancel_callback
         super().__init__(**kwargs)
@@ -89,13 +89,10 @@ class WxAsyncApp(wx.App):
                 # polling interval to avoid busy-waiting.
                 if processed:
                     await asyncio.sleep(0)
-                    self.ui_idle = False
                 else:
                     await asyncio.sleep(self.sleep_duration)
-                self.ProcessPendingEvents()
-                if not self.ui_idle:
                     event_loop.ProcessIdle()
-                    self.ui_idle = True
+                self.ProcessPendingEvents()
             self.exiting = False
         self.OnExit()
 
@@ -118,12 +115,12 @@ class WxAsyncApp(wx.App):
         cancelled automatically via OnDestroy.
 
         Raises:
-            Exception: If object is not a wx.Window or async_callback is not a coroutine.
+            TypeError: If object is not a wx.Window or async_callback is not a coroutine.
         """
         if not isinstance(object, wx.Window):
-            raise Exception("object must be a wx.Window")
+            raise TypeError("object must be a wx.Window")
         if not inspect.iscoroutinefunction(async_callback):
-            raise Exception("async_callback is not a coroutine function")
+            raise TypeError("async_callback is not a coroutine function")
         if object not in self.BoundObjects:
             self.BoundObjects[object] = defaultdict(list)
             object.Bind(
@@ -149,10 +146,10 @@ class WxAsyncApp(wx.App):
         Returns the asyncio.Task for the running coroutine.
 
         Raises:
-            Exception: If obj is not a wx.Window.
+            TypeError: If obj is not a wx.Window.
         """
         if not isinstance(obj, wx.Window):
-            raise Exception("obj must be a wx.Window")
+            raise TypeError("obj must be a wx.Window")
         if inspect.iscoroutinefunction(coroutine):
             coroutine = coroutine()
         if obj not in self.BoundObjects:
@@ -164,6 +161,7 @@ class WxAsyncApp(wx.App):
         tracked = _TrackedTask(task=task, obj=obj)
         task.add_done_callback(self.OnTaskCompleted)
         self.RunningTasks[obj].add(tracked)
+        self._task_index[task] = tracked
         return task
 
     def OnTaskCompleted(self, task: asyncio.Task[Any]) -> None:
@@ -182,28 +180,28 @@ class WxAsyncApp(wx.App):
                 f"Exception in async callback: {exc!r}", RuntimeWarning, stacklevel=2
             )
         finally:
-            for obj, tracked_set in list(self.RunningTasks.items()):
-                tracked = next(
-                    (tracked for tracked in tracked_set if tracked.task is task), None
-                )
-                if tracked is not None:
+            tracked = self._task_index.pop(task, None)
+            if tracked is not None:
+                obj = tracked.obj
+                tracked_set = self.RunningTasks.get(obj)
+                if tracked_set is not None:
                     tracked_set.discard(tracked)
                     if not tracked_set:
                         del self.RunningTasks[obj]
-                    break
 
     def OnDestroy(self, event: wx.WindowDestroyEvent, obj: wx.Window) -> None:
         """Cancel all running tasks for a window and clean up its bindings."""
         tracked_tasks = list(self.RunningTasks.get(obj, set()))
         for tracked in tracked_tasks:
+            self._task_index.pop(tracked.task, None)
             if not tracked.task.done():
                 tracked.task.cancel()
                 if self.warn_on_cancel_callback:
                     warnings.warn(
-                        "cancelling callback" + str(obj) + str(tracked.task),
+                        "cancelling callback " + str(obj) + " " + str(tracked.task),
                         stacklevel=2,
                     )
-        del self.BoundObjects[obj]
+        self.BoundObjects.pop(obj, None)
         if obj in self.RunningTasks:
             del self.RunningTasks[obj]
 
@@ -219,11 +217,11 @@ def AsyncBind(
     """Module-level convenience wrapper for WxAsyncApp.AsyncBind.
 
     Raises:
-        Exception: If no WxAsyncApp instance exists.
+        RuntimeError: If no WxAsyncApp instance exists.
     """
     app = wx.App.Get()
     if not isinstance(app, WxAsyncApp):
-        raise Exception("Create a 'WxAsyncApp' first")
+        raise RuntimeError("Create a 'WxAsyncApp' first")
     app.AsyncBind(event, async_callback, object, source=source, id=id, id2=id2)
 
 
@@ -233,9 +231,9 @@ def StartCoroutine(
     """Module-level convenience wrapper for WxAsyncApp.StartCoroutine.
 
     Raises:
-        Exception: If no WxAsyncApp instance exists.
+        RuntimeError: If no WxAsyncApp instance exists.
     """
     app = wx.App.Get()
     if not isinstance(app, WxAsyncApp):
-        raise Exception("Create a 'WxAsyncApp' first")
+        raise RuntimeError("Create a 'WxAsyncApp' first")
     return app.StartCoroutine(coroutine, obj)
